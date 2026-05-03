@@ -18,7 +18,8 @@
       "Bash(gcloud builds *)",
       "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-core-posts/.github/workflows/**)",
       "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-core_form/.github/workflows/**)",
-      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-schools-core/.github/workflows/**)"
+      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-schools-core/.github/workflows/**)",
+      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-payments/.github/workflows/**)"
     ],
     "additionalDirectories": [
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-depoiments/.github/workflows",
@@ -32,7 +33,11 @@
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v3-peoples/.github/workflows",
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-core-posts/.github/workflows",
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-core_form/.github/workflows",
-      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-schools-core/.github/workflows"
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-schools-core/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-acls/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-payments/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-settings/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-genesis/.github/workflows"
     ]
   }
 }

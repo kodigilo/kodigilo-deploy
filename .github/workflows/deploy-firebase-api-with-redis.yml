@@ -1,0 +1,185 @@
+name: Reusable - Deploy Cloud Function (with REDIS)
+
+on:
+  workflow_call:
+    inputs:
+      nomeDaFuncao:
+        required: true
+        type: string
+      projeto:
+        required: true
+        type: string
+      bancoSuffix:
+        required: false
+        type: string
+        default: school_1
+    secrets:
+      FIREBASE_DEV:
+        required: false
+      FIREBASE_QA:
+        required: false
+      FIREBASE_SANDBOX:
+        required: false
+      FIREBASE:
+        required: false
+
+concurrency:
+  group: pipeline-unica-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      nomeDaFuncao: ${{ inputs.nomeDaFuncao }}
+      projeto: ${{ inputs.projeto }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: 'auth dev'
+        if: github.ref_name == 'dev'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_DEV }}'
+          export_default_credentials: true
+
+      - name: 'auth qa'
+        if: github.ref_name == 'qa'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_QA }}'
+          export_default_credentials: true
+
+      - name: 'auth sandbox'
+        if: github.ref_name == 'sandbox'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_SANDBOX }}'
+          export_default_credentials: true
+
+      - name: 'auth main'
+        if: github.ref_name == 'main'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.FIREBASE }}'
+          export_default_credentials: true
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Definir ambiente e projeto
+        id: env
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            echo "ENV=" >> $GITHUB_ENV
+            echo "ENV_DB=" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
+            echo "ENV=DEV_" >> $GITHUB_ENV
+            echo "ENV_DB=dev_" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF_NAME}" == "qa" ]]; then
+            echo "ENV=QA_" >> $GITHUB_ENV
+            echo "ENV_DB=qa_" >> $GITHUB_ENV
+          else
+            echo "ENV=SANDBOX_" >> $GITHUB_ENV
+            echo "ENV_DB=sandbox_" >> $GITHUB_ENV
+          fi
+          echo "project_id=$(gcloud config get-value project)" >> $GITHUB_OUTPUT
+
+      - name: Acessar segredos do Secret Manager (paralelo)
+        id: secret
+        uses: 'google-github-actions/get-secretmanager-secrets@v2'
+        with:
+          secrets: |-
+            DB_MYSQL_STRING:${{ steps.env.outputs.project_id }}/${{ env.ENV }}DB_MYSQL_STRING
+            DOMAIN:${{ steps.env.outputs.project_id }}/${{ env.ENV }}DOMAIN
+            APIKEY:${{ steps.env.outputs.project_id }}/${{ env.ENV }}APIKEY
+            AUTHDOMAIN:${{ steps.env.outputs.project_id }}/${{ env.ENV }}AUTHDOMAIN
+            STORAGEBUCKET:${{ steps.env.outputs.project_id }}/${{ env.ENV }}STORAGEBUCKET
+            MESSAGINGSENDERID:${{ steps.env.outputs.project_id }}/${{ env.ENV }}MESSAGINGSENDERID
+            APPID:${{ steps.env.outputs.project_id }}/${{ env.ENV }}APPID
+            MEASUREMENTID:${{ steps.env.outputs.project_id }}/${{ env.ENV }}MEASUREMENTID
+            NETWORK:${{ steps.env.outputs.project_id }}/${{ env.ENV }}NETWORK
+            SUBNET:${{ steps.env.outputs.project_id }}/${{ env.ENV }}SUBNET
+            REDIS:${{ steps.env.outputs.project_id }}/${{ env.ENV }}REDIS
+
+      - name: Write file yaml env
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./env.yaml
+          write-mode: overwrite
+          contents: |
+            DATABASE_URL: "mysql://${{ steps.secret.outputs.DB_MYSQL_STRING }}/${{env.projeto}}_${{env.ENV_DB}}${{ inputs.bancoSuffix }}?connection_limit=5"
+            DOMAIN: "${{ steps.secret.outputs.DOMAIN }}/${{env.nomeDaFuncao}}"
+            FUNCTION: ${{env.nomeDaFuncao}}
+            APIKEY: "${{ steps.secret.outputs.APIKEY }}"
+            AUTHDOMAIN: "${{ steps.secret.outputs.AUTHDOMAIN }}"
+            PROJECTID: "${{ steps.env.outputs.project_id }}"
+            STORAGEBUCKET: "${{ steps.secret.outputs.STORAGEBUCKET }}"
+            MESSAGINGSENDERID: "${{ steps.secret.outputs.MESSAGINGSENDERID }}"
+            APPID: "${{ steps.secret.outputs.APPID }}"
+            MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
+            HTTP: https
+            REDIS: "${{ steps.secret.outputs.REDIS }}"
+
+      - name: Write file firebase account DEV
+        if: github.ref_name == 'dev'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_DEV }}
+
+      - name: Write file firebase account QA
+        if: github.ref_name == 'qa'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_QA }}
+
+      - name: Write file firebase account SANDBOX
+        if: github.ref_name == 'sandbox'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_SANDBOX }}
+
+      - name: Write file firebase account PROD
+        if: github.ref_name == 'main'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE }}
+
+      - name: Replace placeholder no src/index.ts
+        run: |
+          sed -i "s/google_nome_funcao_replace_pipiline/${{ env.nomeDaFuncao }}/g" src/index.ts
+
+      - name: 'Deploy na function'
+        run: 'gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs20 --memory=1Gi --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --project=${{ steps.env.outputs.project_id }} --min-instances=0 --max-instances=3'
+
+      - name: 'Configurar Direct VPC Egress no Cloud Run subjacente'
+        run: |
+          RUN_SERVICE=$(echo "${nomeDaFuncao}" | tr '_' '-')
+          gcloud run services update "${RUN_SERVICE}" \
+            --region=us-central1 \
+            --project=${{ steps.env.outputs.project_id }} \
+            --network=${{ steps.secret.outputs.NETWORK }} \
+            --subnet=${{ steps.secret.outputs.SUBNET }} \
+            --vpc-egress=private-ranges-only \
+            --clear-vpc-connector
+
+      - name: 'Limpando Artifact'
+        run: ./google.sh ${{ steps.env.outputs.project_id }} ${{ env.nomeDaFuncao }} us-central1
