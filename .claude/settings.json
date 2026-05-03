@@ -19,7 +19,12 @@
       "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-core-posts/.github/workflows/**)",
       "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-core_form/.github/workflows/**)",
       "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-schools-core/.github/workflows/**)",
-      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-payments/.github/workflows/**)"
+      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-payments/.github/workflows/**)",
+      "Read(//Users/gabrielalencar/Documents/custom/**)",
+      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-go-v1-chat/.github/workflows/**)",
+      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-mysql/.github/workflows/**)",
+      "Bash(gcloud sql *)",
+      "Bash(gcloud secrets *)"
     ],
     "additionalDirectories": [
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-depoiments/.github/workflows",
@@ -37,7 +42,25 @@
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-acls/.github/workflows",
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-payments/.github/workflows",
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-settings/.github/workflows",
-      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-genesis/.github/workflows"
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-genesis/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-go-v1-chat/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-mysql/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-core/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-depoiments/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-eads/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-forms-crud/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-magazines/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-menus/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-pedagogico/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-peoples/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-post/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-templates/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v3-peoples/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-core_form/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-genesis/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-acls/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-payments/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/mybuilder-typescript-v1-settings/.github/workflows"
     ]
   }
 }
