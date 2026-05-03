@@ -9,6 +9,15 @@ on:
       projeto:
         required: true
         type: string
+    secrets:
+      FIREBASE_DEV:
+        required: false
+      FIREBASE_QA:
+        required: false
+      FIREBASE_SANDBOX:
+        required: false
+      FIREBASE:
+        required: false
 
 concurrency:
   group: pipeline-unica-${{ github.workflow }}-${{ github.ref }}
