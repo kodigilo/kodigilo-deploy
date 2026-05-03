@@ -1,0 +1,208 @@
+name: Reusable - Deploy Cloud Function
+
+on:
+  workflow_call:
+    inputs:
+      nomeDaFuncao:
+        required: true
+        type: string
+      projeto:
+        required: true
+        type: string
+
+concurrency:
+  group: pipeline-unica-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+  
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      nomeDaFuncao: ${{ inputs.nomeDaFuncao }}
+      projeto: ${{ inputs.projeto }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@master
+
+      - name: 'auth dev'
+        if: github.ref_name == 'dev'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_DEV }}'
+          export_default_credentials: true
+
+      - name: 'auth qa'
+        if: github.ref_name == 'qa'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_QA }}'
+          export_default_credentials: true
+
+      - name: 'auth sandbox'
+        if: github.ref_name == 'sandbox'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_SANDBOX }}'
+          export_default_credentials: true
+
+      - name: 'auth main'
+        if: github.ref_name == 'main'
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.FIREBASE }}'
+          export_default_credentials: true
+
+      - name: Definir ambiente com base na branch
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            echo "ENV=" >> $GITHUB_ENV
+            echo "ENV_DB=" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
+            echo "ENV=DEV_" >> $GITHUB_ENV
+            echo "ENV_DB=dev_" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF_NAME}" == "qa" ]]; then
+            echo "ENV=QA_" >> $GITHUB_ENV
+            echo "ENV_DB=qa_" >> $GITHUB_ENV
+          else
+            echo "ENV=SANDBOX_" >> $GITHUB_ENV
+            echo "ENV_DB=sandbox_" >> $GITHUB_ENV
+          fi
+
+      - name: Ambiente definido
+        run: |
+          echo "Ambiente definido como: $ENV"
+          echo "Branch: $GITHUB_REF_NAME"
+
+      - name: Acessar segredo do Secret Manager
+        id: secret
+        run: |
+          DB_MYSQL_STRING=$(gcloud secrets versions access latest --secret="${ENV}DB_MYSQL_STRING")
+          DOMAIN=$(gcloud secrets versions access latest --secret="${ENV}DOMAIN")
+          APIKEY=$(gcloud secrets versions access latest --secret="${ENV}APIKEY")
+          AUTHDOMAIN=$(gcloud secrets versions access latest --secret="${ENV}AUTHDOMAIN")
+          PROJECTID=$(gcloud secrets versions access latest --secret="${ENV}PROJECTID")
+          STORAGEBUCKET=$(gcloud secrets versions access latest --secret="${ENV}STORAGEBUCKET")
+          MESSAGINGSENDERID=$(gcloud secrets versions access latest --secret="${ENV}MESSAGINGSENDERID")
+          APPID=$(gcloud secrets versions access latest --secret="${ENV}APPID")
+          MEASUREMENTID=$(gcloud secrets versions access latest --secret="${ENV}MEASUREMENTID")
+          VCP_CONNECTOR=$(gcloud secrets versions access latest --secret="${ENV}VCP_CONNECTOR")
+          echo "DB_MYSQL_STRING=${DB_MYSQL_STRING}" >> $GITHUB_OUTPUT
+          echo "DOMAIN=${DOMAIN}" >> $GITHUB_OUTPUT
+          echo "APIKEY=${APIKEY}" >> $GITHUB_OUTPUT
+          echo "AUTHDOMAIN=${AUTHDOMAIN}" >> $GITHUB_OUTPUT
+          echo "PROJECTID=${PROJECTID}" >> $GITHUB_OUTPUT
+          echo "STORAGEBUCKET=${STORAGEBUCKET}" >> $GITHUB_OUTPUT
+          echo "MESSAGINGSENDERID=${MESSAGINGSENDERID}" >> $GITHUB_OUTPUT
+          echo "APPID=${APPID}" >> $GITHUB_OUTPUT
+          echo "MEASUREMENTID=${MEASUREMENTID}" >> $GITHUB_OUTPUT
+          echo "VCP_CONNECTOR=${VCP_CONNECTOR}" >> $GITHUB_OUTPUT
+
+      - name: Write file yaml env
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./env.yaml
+          write-mode: overwrite
+          contents: |
+            DATABASE_URL: "mysql://${{ steps.secret.outputs.DB_MYSQL_STRING }}/${{env.projeto}}_${{env.ENV_DB}}school_1?connection_limit=5"
+            DOMAIN: "${{ steps.secret.outputs.DOMAIN }}/${{env.nomeDaFuncao}}"
+            FUNCTION: ${{env.nomeDaFuncao}}
+            APIKEY: "${{ steps.secret.outputs.APIKEY }}"
+            AUTHDOMAIN: "${{ steps.secret.outputs.AUTHDOMAIN }}"
+            PROJECTID: "${{ steps.secret.outputs.PROJECTID }}"
+            STORAGEBUCKET: "${{ steps.secret.outputs.STORAGEBUCKET }}"
+            MESSAGINGSENDERID: "${{ steps.secret.outputs.MESSAGINGSENDERID }}"
+            APPID: "${{ steps.secret.outputs.APPID }}"
+            MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
+            HTTP: https
+            VCP_CONNECTOR: "${{ steps.secret.outputs.VCP_CONNECTOR }}"
+
+      - name: Write file firebase account DEV
+        if: github.ref_name == 'dev'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_DEV }}
+
+      - name: Write file firebase account QA
+        if: github.ref_name == 'qa'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_QA }}
+
+      - name: Write file firebase account SANDBOX
+        if: github.ref_name == 'sandbox'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_SANDBOX }}
+
+      - name: em src/index.ts fazer um replace de 'google_nome_funcao_replace_pipiline' por o nome da função ${{ env.nomeDaFuncao }}
+        run: |
+          sed -i "s/google_nome_funcao_replace_pipiline/${{ env.nomeDaFuncao }}/g" src/index.ts
+
+      - name: printar o arquivo src/index.ts
+        run: cat src/index.ts
+
+      - name: Write file firebase account PROD
+        if: github.ref_name == 'main'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE }}
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v1'
+        with:
+          version: '>= 363.0.0'
+
+      - name: 'Use gcloud CLI'
+        run: 'gcloud info'
+
+      - name: 'Verificar geração da Function'
+        id: check_gen
+        run: |
+          set +e
+          GEN=$(gcloud functions describe ${nomeDaFuncao} \
+            --project=${{ steps.secret.outputs.PROJECTID }} \
+            --region=us-central1 \
+            --format="value(environment)")
+          EXIT_CODE=$?
+          set -e
+
+          if [[ $EXIT_CODE -ne 0 ]]; then
+            echo "Function não existe ainda"
+            echo "GEN=XXX" >> $GITHUB_ENV
+          else
+            echo "Function encontrada, environment=$GEN"
+            echo "GEN=$GEN" >> $GITHUB_ENV
+          fi
+
+      - name: 'Remover Function Gen1 (se existir)'
+        #        ou vazia
+        if: env.GEN == 'gen1' || env.GEN == ''
+        run: |
+          echo "Deletando Function Gen1 existente..."
+          gcloud functions delete ${nomeDaFuncao} \
+            --project=${{ steps.secret.outputs.PROJECTID }} \
+            --region=us-central1 \
+            --quiet
+
+      - name: 'Deploy na function'
+        run: 'gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs20 --memory=1Gi --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --vpc-connector=${{ steps.secret.outputs.VCP_CONNECTOR }} --egress-settings=private-ranges-only --project=${{ steps.secret.outputs.PROJECTID }} --min-instances=0 --max-instances=3'
+
+      - name: 'Limpando Artifact'
+        run: ./google.sh ${{ steps.secret.outputs.PROJECTID }} ${{ env.nomeDaFuncao }} us-central1
