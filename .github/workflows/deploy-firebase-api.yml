@@ -99,7 +99,8 @@ jobs:
           MESSAGINGSENDERID=$(gcloud secrets versions access latest --secret="${ENV}MESSAGINGSENDERID")
           APPID=$(gcloud secrets versions access latest --secret="${ENV}APPID")
           MEASUREMENTID=$(gcloud secrets versions access latest --secret="${ENV}MEASUREMENTID")
-          VCP_CONNECTOR=$(gcloud secrets versions access latest --secret="${ENV}VCP_CONNECTOR")
+          NETWORK=$(gcloud secrets versions access latest --secret="${ENV}NETWORK")
+          SUBNET=$(gcloud secrets versions access latest --secret="${ENV}SUBNET")
           echo "DB_MYSQL_STRING=${DB_MYSQL_STRING}" >> $GITHUB_OUTPUT
           echo "DOMAIN=${DOMAIN}" >> $GITHUB_OUTPUT
           echo "APIKEY=${APIKEY}" >> $GITHUB_OUTPUT
@@ -109,7 +110,8 @@ jobs:
           echo "MESSAGINGSENDERID=${MESSAGINGSENDERID}" >> $GITHUB_OUTPUT
           echo "APPID=${APPID}" >> $GITHUB_OUTPUT
           echo "MEASUREMENTID=${MEASUREMENTID}" >> $GITHUB_OUTPUT
-          echo "VCP_CONNECTOR=${VCP_CONNECTOR}" >> $GITHUB_OUTPUT
+          echo "NETWORK=${NETWORK}" >> $GITHUB_OUTPUT
+          echo "SUBNET=${SUBNET}" >> $GITHUB_OUTPUT
 
       - name: Write file yaml env
         uses: 'DamianReeves/write-file-action@master'
@@ -128,7 +130,6 @@ jobs:
             APPID: "${{ steps.secret.outputs.APPID }}"
             MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
             HTTP: https
-            VCP_CONNECTOR: "${{ steps.secret.outputs.VCP_CONNECTOR }}"
 
       - name: Write file firebase account DEV
         if: github.ref_name == 'dev'
@@ -211,7 +212,17 @@ jobs:
             --quiet
 
       - name: 'Deploy na function'
-        run: 'gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs20 --memory=1Gi --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --vpc-connector=${{ steps.secret.outputs.VCP_CONNECTOR }} --egress-settings=private-ranges-only --project=${{ steps.secret.outputs.PROJECTID }} --min-instances=0 --max-instances=3'
+        run: 'gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs20 --memory=1Gi --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --project=${{ steps.secret.outputs.PROJECTID }} --min-instances=0 --max-instances=3'
+
+      - name: 'Configurar Direct VPC Egress no Cloud Run subjacente'
+        run: |
+          gcloud run services update ${nomeDaFuncao} \
+            --region=us-central1 \
+            --project=${{ steps.secret.outputs.PROJECTID }} \
+            --network=${{ steps.secret.outputs.NETWORK }} \
+            --subnet=${{ steps.secret.outputs.SUBNET }} \
+            --vpc-egress=private-ranges-only \
+            --clear-vpc-connector
 
       - name: 'Limpando Artifact'
         run: ./google.sh ${{ steps.secret.outputs.PROJECTID }} ${{ env.nomeDaFuncao }} us-central1
