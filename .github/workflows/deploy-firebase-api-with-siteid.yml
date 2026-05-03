@@ -124,7 +124,7 @@ jobs:
             MESSAGINGSENDERID: "${{ steps.secret.outputs.MESSAGINGSENDERID }}"
             APPID: "${{ steps.secret.outputs.APPID }}"
             MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
-            SITEID: "${{ steps.secret.outputs.SITEID }}"
+            SITEID: '${{ steps.secret.outputs.SITEID }}'
             HTTP: https
 
       - name: Write file firebase account DEV
