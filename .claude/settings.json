@@ -15,7 +15,10 @@
       "Read(//Users/gabrielalencar/Documents/custom/__TRACKED_VAR__/.github/**)",
       "Bash(gcloud version *)",
       "Bash(gcloud alpha *)",
-      "Bash(gcloud builds *)"
+      "Bash(gcloud builds *)",
+      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-core-posts/.github/workflows/**)",
+      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-core_form/.github/workflows/**)",
+      "Read(//Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-schools-core/.github/workflows/**)"
     ],
     "additionalDirectories": [
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-depoiments/.github/workflows",
@@ -26,7 +29,10 @@
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-peoples/.github/workflows",
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-post/.github/workflows",
       "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-templates/.github/workflows",
-      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v3-peoples/.github/workflows"
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v3-peoples/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-core-posts/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-core_form/.github/workflows",
+      "/Users/gabrielalencar/Documents/custom/gestio-school-typescript-v1-schools-core/.github/workflows"
     ]
   }
 }

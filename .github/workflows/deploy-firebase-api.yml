@@ -9,6 +9,10 @@ on:
       projeto:
         required: true
         type: string
+      bancoSuffix:
+        required: false
+        type: string
+        default: school_1
     secrets:
       FIREBASE_DEV:
         required: false
@@ -109,7 +113,7 @@ jobs:
           path: ./env.yaml
           write-mode: overwrite
           contents: |
-            DATABASE_URL: "mysql://${{ steps.secret.outputs.DB_MYSQL_STRING }}/${{env.projeto}}_${{env.ENV_DB}}school_1?connection_limit=5"
+            DATABASE_URL: "mysql://${{ steps.secret.outputs.DB_MYSQL_STRING }}/${{env.projeto}}_${{env.ENV_DB}}${{ inputs.bancoSuffix }}?connection_limit=5"
             DOMAIN: "${{ steps.secret.outputs.DOMAIN }}/${{env.nomeDaFuncao}}"
             FUNCTION: ${{env.nomeDaFuncao}}
             APIKEY: "${{ steps.secret.outputs.APIKEY }}"
