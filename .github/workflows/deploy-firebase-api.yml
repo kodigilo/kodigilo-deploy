@@ -216,7 +216,8 @@ jobs:
 
       - name: 'Configurar Direct VPC Egress no Cloud Run subjacente'
         run: |
-          gcloud run services update ${nomeDaFuncao} \
+          RUN_SERVICE=$(echo "${nomeDaFuncao}" | tr '_' '-')
+          gcloud run services update "${RUN_SERVICE}" \
             --region=us-central1 \
             --project=${{ steps.secret.outputs.PROJECTID }} \
             --network=${{ steps.secret.outputs.NETWORK }} \
