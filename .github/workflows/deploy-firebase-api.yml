@@ -166,7 +166,7 @@ jobs:
           sed -i "s/google_nome_funcao_replace_pipiline/${{ env.nomeDaFuncao }}/g" src/index.ts
 
       - name: 'Deploy na function'
-        run: 'gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs20 --memory=1Gi --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --project=${{ steps.env.outputs.project_id }} --min-instances=0 --max-instances=3'
+        run: 'gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs22 --memory=1Gi --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --project=${{ steps.env.outputs.project_id }} --min-instances=0 --max-instances=3'
 
       - name: 'Configurar Direct VPC Egress no Cloud Run subjacente'
         run: |
