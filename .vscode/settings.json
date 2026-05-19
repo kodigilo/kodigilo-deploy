@@ -1,0 +1,12 @@
+{
+    "editor.fontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    "editor.fontLigatures": false,
+    "editor.fontSize": 14,
+    "editor.inlayHints.fontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    "editor.inlineSuggest.fontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    "chat.editor.fontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    "debug.console.fontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    "terminal.integrated.fontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    "notebook.output.fontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace",
+    "editor.codeLensFontFamily": "'JetBrains Mono', Menlo, Monaco, 'Courier New', monospace"
+}
