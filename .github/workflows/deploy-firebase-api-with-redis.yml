@@ -151,7 +151,8 @@ jobs:
             APPID: "${{ steps.secret.outputs.APPID }}"
             MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
             HTTP: https
-            REDIS: '${{ steps.secret.outputs.REDIS }}'
+            REDIS: |-
+              ${{ steps.secret.outputs.REDIS }}
 
       - name: Write file firebase account DEV
         if: github.ref_name == 'dev'
