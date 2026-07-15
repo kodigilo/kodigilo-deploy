@@ -25,6 +25,10 @@ on:
         required: false
         type: string
         default: "3"
+      withRecaptcha:
+        required: false
+        type: boolean
+        default: false
     secrets:
       FIREBASE_DEV:
         required: false
@@ -121,6 +125,16 @@ jobs:
             REDIS:${{ steps.env.outputs.project_id }}/${{ env.ENV }}REDIS
             DB_INSTANCE_CONNECTION_NAME:${{ steps.env.outputs.project_id }}/${{ env.ENV }}DB_INSTANCE_CONNECTION_NAME
 
+      - name: Acessar secrets do reCAPTCHA (opcional)
+        id: recaptcha_secret
+        if: ${{ inputs.withRecaptcha }}
+        uses: 'google-github-actions/get-secretmanager-secrets@v2'
+        with:
+          secrets: |-
+            RECAPTCHA_ENABLED:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_ENABLED
+            RECAPTCHA_SITE_KEY:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_SITE_KEY
+            RECAPTCHA_MIN_SCORE:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_MIN_SCORE
+
       - name: Montar DATABASE_URL via socket do Cloud SQL
         run: |
           # Remove "@host" da credencial (fica user:pass) para conectar via socket,
@@ -153,6 +167,15 @@ jobs:
             MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
             HTTP: https
             REDIS: '${{ steps.secret.outputs.REDIS }}'
+
+      - name: Append reCAPTCHA no env.yaml (opcional)
+        if: ${{ inputs.withRecaptcha }}
+        run: |
+          cat >> ./env.yaml <<EOF
+          RECAPTCHA_ENABLED: "${{ steps.recaptcha_secret.outputs.RECAPTCHA_ENABLED }}"
+          RECAPTCHA_SITE_KEY: "${{ steps.recaptcha_secret.outputs.RECAPTCHA_SITE_KEY }}"
+          RECAPTCHA_MIN_SCORE: "${{ steps.recaptcha_secret.outputs.RECAPTCHA_MIN_SCORE }}"
+          EOF
 
       - name: Write file firebase account DEV
         if: github.ref_name == 'dev'
