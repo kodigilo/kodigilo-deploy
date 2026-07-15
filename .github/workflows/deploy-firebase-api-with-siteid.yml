@@ -119,6 +119,20 @@ jobs:
             NETWORK:${{ steps.env.outputs.project_id }}/${{ env.ENV }}NETWORK
             SUBNET:${{ steps.env.outputs.project_id }}/${{ env.ENV }}SUBNET
             SITEID:${{ steps.env.outputs.project_id }}/${{ env.ENV }}SITEID
+            DB_INSTANCE_CONNECTION_NAME:${{ steps.env.outputs.project_id }}/${{ env.ENV }}DB_INSTANCE_CONNECTION_NAME
+
+      - name: Montar DATABASE_URL via socket do Cloud SQL
+        run: |
+          # Remove "@host" da credencial (fica user:pass) para conectar via socket,
+          # que não depende do timing do Direct VPC Egress no cold start.
+          CREDS="${DB_MYSQL_STRING%@*}"
+          DBNAME="${projeto}_${ENV_DB}${BANCO_SUFFIX}"
+          echo "DATABASE_URL_SOCKET=mysql://${CREDS}@localhost/${DBNAME}?socket=/cloudsql/${CONN}&connection_limit=5" >> "$GITHUB_ENV"
+        env:
+          DB_MYSQL_STRING: ${{ steps.secret.outputs.DB_MYSQL_STRING }}
+          CONN: ${{ steps.secret.outputs.DB_INSTANCE_CONNECTION_NAME }}
+          projeto: ${{ inputs.projeto }}
+          BANCO_SUFFIX: ${{ inputs.bancoSuffix }}
 
       - name: Write file yaml env
         uses: 'DamianReeves/write-file-action@master'
@@ -126,7 +140,7 @@ jobs:
           path: ./env.yaml
           write-mode: overwrite
           contents: |
-            DATABASE_URL: "mysql://${{ steps.secret.outputs.DB_MYSQL_STRING }}/${{env.projeto}}_${{env.ENV_DB}}${{ inputs.bancoSuffix }}?connection_limit=5"
+            DATABASE_URL: "${{ env.DATABASE_URL_SOCKET }}"
             DOMAIN: "${{ steps.secret.outputs.DOMAIN }}/${{env.nomeDaFuncao}}"
             FUNCTION: ${{env.nomeDaFuncao}}
             APIKEY: "${{ steps.secret.outputs.APIKEY }}"
@@ -195,6 +209,7 @@ jobs:
             --network=${{ steps.secret.outputs.NETWORK }} \
             --subnet=${{ steps.secret.outputs.SUBNET }} \
             --vpc-egress=private-ranges-only \
+            --add-cloudsql-instances=${{ steps.secret.outputs.DB_INSTANCE_CONNECTION_NAME }} \
             --clear-vpc-connector
 
       - name: 'Limpando Artifact'
