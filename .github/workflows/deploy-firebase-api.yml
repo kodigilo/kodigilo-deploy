@@ -170,6 +170,9 @@ jobs:
       - name: Anexar secrets extras ao env.yaml (opcional)
         if: inputs.extraSecrets != ''
         run: |
+          # o write-file-action nao termina o arquivo com newline — sem isso o
+          # append colaria na ultima linha e quebraria o YAML
+          if [ -s env.yaml ] && [ -n "$(tail -c 1 env.yaml)" ]; then echo >> env.yaml; fi
           for NAME in ${{ inputs.extraSecrets }}; do
             VALUE=$(gcloud secrets versions access latest --secret="${ENV}${NAME}" --project=${{ steps.env.outputs.project_id }} 2>/dev/null || true)
             if [ -n "$VALUE" ]; then
