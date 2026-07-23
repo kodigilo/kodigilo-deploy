@@ -25,6 +25,22 @@ on:
         required: false
         type: string
         default: "3"
+      memory:
+        required: false
+        type: string
+        default: "1Gi"
+      timeoutSeconds:
+        required: false
+        type: string
+        default: ""
+      # Nomes de secrets adicionais (separados por espaço) buscados no Secret
+      # Manager com o prefixo do ambiente (ex: GEMINI_API_KEY -> DEV_GEMINI_API_KEY
+      # no dev). Busca tolerante: secret ausente vira warning, não quebra o deploy
+      # de APIs que não usam essas variáveis.
+      extraSecrets:
+        required: false
+        type: string
+        default: ""
     secrets:
       FIREBASE_DEV:
         required: false
@@ -151,6 +167,19 @@ jobs:
             MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
             HTTP: https
 
+      - name: Anexar secrets extras ao env.yaml (opcional)
+        if: inputs.extraSecrets != ''
+        run: |
+          for NAME in ${{ inputs.extraSecrets }}; do
+            VALUE=$(gcloud secrets versions access latest --secret="${ENV}${NAME}" --project=${{ steps.env.outputs.project_id }} 2>/dev/null || true)
+            if [ -n "$VALUE" ]; then
+              ESCAPED=$(printf '%s' "$VALUE" | sed 's/\\/\\\\/g; s/"/\\"/g')
+              printf '%s: "%s"\n' "$NAME" "$ESCAPED" >> env.yaml
+            else
+              echo "::warning::Secret ${ENV}${NAME} nao encontrado no Secret Manager — variavel $NAME nao sera definida"
+            fi
+          done
+
       - name: Write file firebase account DEV
         if: github.ref_name == 'dev'
         uses: 'DamianReeves/write-file-action@master'
@@ -196,7 +225,8 @@ jobs:
           EXTRA_FLAGS=""
           if [ -n "${{ inputs.cpu }}" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --cpu=${{ inputs.cpu }}"; fi
           if [ -n "${{ inputs.concurrency }}" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --concurrency=${{ inputs.concurrency }}"; fi
-          gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs22 --memory=1Gi --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --project=${{ steps.env.outputs.project_id }} --min-instances=0 --max-instances=${{ inputs.maxInstances }} $EXTRA_FLAGS
+          if [ -n "${{ inputs.timeoutSeconds }}" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --timeout=${{ inputs.timeoutSeconds }}s"; fi
+          gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs22 --memory=${{ inputs.memory }} --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --project=${{ steps.env.outputs.project_id }} --min-instances=0 --max-instances=${{ inputs.maxInstances }} $EXTRA_FLAGS
 
       - name: 'Configurar Direct VPC Egress no Cloud Run subjacente'
         run: |
