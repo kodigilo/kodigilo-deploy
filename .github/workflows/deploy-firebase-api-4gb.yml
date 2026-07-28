@@ -119,6 +119,9 @@ jobs:
             NETWORK:${{ steps.env.outputs.project_id }}/${{ env.ENV }}NETWORK
             SUBNET:${{ steps.env.outputs.project_id }}/${{ env.ENV }}SUBNET
             REDIS:${{ steps.env.outputs.project_id }}/${{ env.ENV }}REDIS
+            RECAPTCHA_ENABLED:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_ENABLED
+            RECAPTCHA_SITE_KEY:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_SITE_KEY
+            RECAPTCHA_MIN_SCORE:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_MIN_SCORE
 
       - name: Write file yaml env
         uses: 'DamianReeves/write-file-action@master'
@@ -128,6 +131,7 @@ jobs:
           contents: |
             DATABASE_URL: "mysql://${{ steps.secret.outputs.DB_MYSQL_STRING }}/${{env.projeto}}_${{env.ENV_DB}}${{ inputs.bancoSuffix }}?connection_limit=5"
             DOMAIN: "${{ steps.secret.outputs.DOMAIN }}/${{env.nomeDaFuncao}}"
+            DOMAIN_FUNCTIONS: "${{ steps.secret.outputs.DOMAIN }}"
             FUNCTION: ${{env.nomeDaFuncao}}
             APIKEY: "${{ steps.secret.outputs.APIKEY }}"
             AUTHDOMAIN: "${{ steps.secret.outputs.AUTHDOMAIN }}"
@@ -137,6 +141,9 @@ jobs:
             APPID: "${{ steps.secret.outputs.APPID }}"
             MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
             HTTP: https
+            RECAPTCHA_ENABLED: "${{ steps.secret.outputs.RECAPTCHA_ENABLED }}"
+            RECAPTCHA_SITE_KEY: "${{ steps.secret.outputs.RECAPTCHA_SITE_KEY }}"
+            RECAPTCHA_MIN_SCORE: "${{ steps.secret.outputs.RECAPTCHA_MIN_SCORE }}"
             REDIS: |-
               ${{ steps.secret.outputs.REDIS }}
 

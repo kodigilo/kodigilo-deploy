@@ -120,6 +120,9 @@ jobs:
             SUBNET:${{ steps.env.outputs.project_id }}/${{ env.ENV }}SUBNET
             SITEID:${{ steps.env.outputs.project_id }}/${{ env.ENV }}SITEID
             DB_INSTANCE_CONNECTION_NAME:${{ steps.env.outputs.project_id }}/${{ env.ENV }}DB_INSTANCE_CONNECTION_NAME
+            RECAPTCHA_ENABLED:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_ENABLED
+            RECAPTCHA_SITE_KEY:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_SITE_KEY
+            RECAPTCHA_MIN_SCORE:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_MIN_SCORE
 
       - name: Montar DATABASE_URL via socket do Cloud SQL
         run: |
@@ -142,6 +145,7 @@ jobs:
           contents: |
             DATABASE_URL: "${{ env.DATABASE_URL_SOCKET }}"
             DOMAIN: "${{ steps.secret.outputs.DOMAIN }}/${{env.nomeDaFuncao}}"
+            DOMAIN_FUNCTIONS: "${{ steps.secret.outputs.DOMAIN }}"
             FUNCTION: ${{env.nomeDaFuncao}}
             APIKEY: "${{ steps.secret.outputs.APIKEY }}"
             AUTHDOMAIN: "${{ steps.secret.outputs.AUTHDOMAIN }}"
@@ -152,6 +156,9 @@ jobs:
             MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
             SITEID: '${{ steps.secret.outputs.SITEID }}'
             HTTP: https
+            RECAPTCHA_ENABLED: "${{ steps.secret.outputs.RECAPTCHA_ENABLED }}"
+            RECAPTCHA_SITE_KEY: "${{ steps.secret.outputs.RECAPTCHA_SITE_KEY }}"
+            RECAPTCHA_MIN_SCORE: "${{ steps.secret.outputs.RECAPTCHA_MIN_SCORE }}"
 
       - name: Write file firebase account DEV
         if: github.ref_name == 'dev'
