@@ -172,6 +172,11 @@ jobs:
       - name: Append reCAPTCHA no env.yaml (opcional)
         if: ${{ inputs.withRecaptcha }}
         run: |
+          # o write-file-action nao termina o arquivo com newline — sem isso o
+          # append colaria na ultima linha e quebraria o YAML (o REDIS e a ultima
+          # chave, entao RECAPTCHA_ENABLED virava parte do valor dele e a variavel
+          # simplesmente nao existia na function). Mesmo guard do deploy-firebase-api.yml.
+          if [ -s ./env.yaml ] && [ -n "$(tail -c 1 ./env.yaml)" ]; then echo >> ./env.yaml; fi
           cat >> ./env.yaml <<EOF
           RECAPTCHA_ENABLED: "${{ steps.recaptcha_secret.outputs.RECAPTCHA_ENABLED }}"
           RECAPTCHA_SITE_KEY: "${{ steps.recaptcha_secret.outputs.RECAPTCHA_SITE_KEY }}"
