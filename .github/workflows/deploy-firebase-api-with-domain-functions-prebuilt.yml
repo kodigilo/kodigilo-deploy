@@ -1,0 +1,292 @@
+name: Reusable - Deploy Cloud Function (with DOMAIN_FUNCTIONS, prebuilt)
+
+# Variante do deploy-firebase-api-with-domain-functions.yml que compila o
+# TypeScript no runner do GitHub (com cache de npm) e envia o dist/ pronto.
+# O Cloud Build entao faz apenas o install de producao + prisma generate,
+# sem devDependencies e sem tsc — cortando o maior custo do deploy.
+#
+# Requisitos do projeto que usa esta variante:
+#   - script "build" no package.json que emite para dist/ (ex: tsc)
+#   - "main" apontando para dist/ (ex: dist/index.js)
+#   - nada de devDependencies importada em runtime (install de producao)
+
+on:
+  workflow_call:
+    inputs:
+      nomeDaFuncao:
+        required: true
+        type: string
+      projeto:
+        required: true
+        type: string
+      bancoSuffix:
+        required: false
+        type: string
+        default: school_1
+      cpu:
+        required: false
+        type: string
+        default: ""
+      concurrency:
+        required: false
+        type: string
+        default: ""
+      maxInstances:
+        required: false
+        type: string
+        default: "3"
+      withRecaptcha:
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      FIREBASE_DEV:
+        required: false
+      FIREBASE_QA:
+        required: false
+      FIREBASE_SANDBOX:
+        required: false
+      FIREBASE:
+        required: false
+
+concurrency:
+  group: pipeline-unica-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      nomeDaFuncao: ${{ inputs.nomeDaFuncao }}
+      projeto: ${{ inputs.projeto }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: 'auth dev'
+        if: github.ref_name == 'dev'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_DEV }}'
+          export_default_credentials: true
+
+      - name: 'auth qa'
+        if: github.ref_name == 'qa'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_QA }}'
+          export_default_credentials: true
+
+      - name: 'auth sandbox'
+        if: github.ref_name == 'sandbox'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.FIREBASE_SANDBOX }}'
+          export_default_credentials: true
+
+      - name: 'auth main'
+        if: github.ref_name == 'main'
+        uses: 'google-github-actions/auth@v2'
+        with:
+          credentials_json: '${{ secrets.FIREBASE }}'
+          export_default_credentials: true
+
+      - name: 'Set up Cloud SDK'
+        uses: 'google-github-actions/setup-gcloud@v2'
+
+      - name: Definir ambiente e projeto
+        id: env
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            echo "ENV=" >> $GITHUB_ENV
+            echo "ENV_DB=" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF_NAME}" == "dev" ]]; then
+            echo "ENV=DEV_" >> $GITHUB_ENV
+            echo "ENV_DB=dev_" >> $GITHUB_ENV
+          elif [[ "${GITHUB_REF_NAME}" == "qa" ]]; then
+            echo "ENV=QA_" >> $GITHUB_ENV
+            echo "ENV_DB=qa_" >> $GITHUB_ENV
+          else
+            echo "ENV=SANDBOX_" >> $GITHUB_ENV
+            echo "ENV_DB=sandbox_" >> $GITHUB_ENV
+          fi
+          echo "project_id=$(gcloud config get-value project)" >> $GITHUB_OUTPUT
+
+      - name: Acessar segredos do Secret Manager (paralelo)
+        id: secret
+        uses: 'google-github-actions/get-secretmanager-secrets@v2'
+        with:
+          secrets: |-
+            DB_MYSQL_STRING:${{ steps.env.outputs.project_id }}/${{ env.ENV }}DB_MYSQL_STRING
+            DOMAIN:${{ steps.env.outputs.project_id }}/${{ env.ENV }}DOMAIN
+            APIKEY:${{ steps.env.outputs.project_id }}/${{ env.ENV }}APIKEY
+            AUTHDOMAIN:${{ steps.env.outputs.project_id }}/${{ env.ENV }}AUTHDOMAIN
+            STORAGEBUCKET:${{ steps.env.outputs.project_id }}/${{ env.ENV }}STORAGEBUCKET
+            MESSAGINGSENDERID:${{ steps.env.outputs.project_id }}/${{ env.ENV }}MESSAGINGSENDERID
+            APPID:${{ steps.env.outputs.project_id }}/${{ env.ENV }}APPID
+            MEASUREMENTID:${{ steps.env.outputs.project_id }}/${{ env.ENV }}MEASUREMENTID
+            NETWORK:${{ steps.env.outputs.project_id }}/${{ env.ENV }}NETWORK
+            SUBNET:${{ steps.env.outputs.project_id }}/${{ env.ENV }}SUBNET
+            REDIS:${{ steps.env.outputs.project_id }}/${{ env.ENV }}REDIS
+            DB_INSTANCE_CONNECTION_NAME:${{ steps.env.outputs.project_id }}/${{ env.ENV }}DB_INSTANCE_CONNECTION_NAME
+
+      - name: Acessar secrets do reCAPTCHA (opcional)
+        id: recaptcha_secret
+        if: ${{ inputs.withRecaptcha }}
+        uses: 'google-github-actions/get-secretmanager-secrets@v2'
+        with:
+          secrets: |-
+            RECAPTCHA_ENABLED:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_ENABLED
+            RECAPTCHA_SITE_KEY:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_SITE_KEY
+            RECAPTCHA_MIN_SCORE:${{ steps.env.outputs.project_id }}/${{ env.ENV }}RECAPTCHA_MIN_SCORE
+
+      - name: Montar DATABASE_URL via socket do Cloud SQL
+        run: |
+          # Remove "@host" da credencial (fica user:pass) para conectar via socket,
+          # que não depende do timing do Direct VPC Egress no cold start.
+          CREDS="${DB_MYSQL_STRING%@*}"
+          DBNAME="${projeto}_${ENV_DB}${BANCO_SUFFIX}"
+          echo "DATABASE_URL_SOCKET=mysql://${CREDS}@localhost/${DBNAME}?socket=/cloudsql/${CONN}&connection_limit=5" >> "$GITHUB_ENV"
+        env:
+          DB_MYSQL_STRING: ${{ steps.secret.outputs.DB_MYSQL_STRING }}
+          CONN: ${{ steps.secret.outputs.DB_INSTANCE_CONNECTION_NAME }}
+          projeto: ${{ inputs.projeto }}
+          BANCO_SUFFIX: ${{ inputs.bancoSuffix }}
+
+      - name: Write file yaml env
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./env.yaml
+          write-mode: overwrite
+          contents: |
+            DATABASE_URL: "${{ env.DATABASE_URL_SOCKET }}"
+            DOMAIN: "${{ steps.secret.outputs.DOMAIN }}/${{env.nomeDaFuncao}}"
+            DOMAIN_FUNCTIONS: "${{ steps.secret.outputs.DOMAIN }}"
+            FUNCTION: ${{env.nomeDaFuncao}}
+            APIKEY: "${{ steps.secret.outputs.APIKEY }}"
+            AUTHDOMAIN: "${{ steps.secret.outputs.AUTHDOMAIN }}"
+            PROJECTID: "${{ steps.env.outputs.project_id }}"
+            STORAGEBUCKET: "${{ steps.secret.outputs.STORAGEBUCKET }}"
+            MESSAGINGSENDERID: "${{ steps.secret.outputs.MESSAGINGSENDERID }}"
+            APPID: "${{ steps.secret.outputs.APPID }}"
+            MEASUREMENTID: "${{ steps.secret.outputs.MEASUREMENTID }}"
+            HTTP: https
+            REDIS: |-
+              ${{ steps.secret.outputs.REDIS }}
+
+      - name: Append reCAPTCHA no env.yaml (opcional)
+        if: ${{ inputs.withRecaptcha }}
+        run: |
+          # o write-file-action nao termina o arquivo com newline — sem isso o
+          # append colaria na ultima linha e quebraria o YAML (o REDIS e a ultima
+          # chave, entao RECAPTCHA_ENABLED virava parte do valor dele e a variavel
+          # simplesmente nao existia na function). Mesmo guard do deploy-firebase-api.yml.
+          if [ -s ./env.yaml ] && [ -n "$(tail -c 1 ./env.yaml)" ]; then echo >> ./env.yaml; fi
+          cat >> ./env.yaml <<EOF
+          RECAPTCHA_ENABLED: "${{ steps.recaptcha_secret.outputs.RECAPTCHA_ENABLED }}"
+          RECAPTCHA_SITE_KEY: "${{ steps.recaptcha_secret.outputs.RECAPTCHA_SITE_KEY }}"
+          RECAPTCHA_MIN_SCORE: "${{ steps.recaptcha_secret.outputs.RECAPTCHA_MIN_SCORE }}"
+          EOF
+
+      - name: Write file firebase account DEV
+        if: github.ref_name == 'dev'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_DEV }}
+
+      - name: Write file firebase account QA
+        if: github.ref_name == 'qa'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_QA }}
+
+      - name: Write file firebase account SANDBOX
+        if: github.ref_name == 'sandbox'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE_SANDBOX }}
+
+      - name: Write file firebase account PROD
+        if: github.ref_name == 'main'
+        uses: 'DamianReeves/write-file-action@master'
+        with:
+          path: ./firebase.json
+          write-mode: overwrite
+          contents: |
+            ${{ secrets.FIREBASE }}
+
+      - name: Replace placeholder no src/index.ts
+        run: |
+          sed -i "s/google_nome_funcao_replace_pipiline/${{ env.nomeDaFuncao }}/g" src/index.ts
+
+      - name: Instalar dependencias (runner)
+        run: npm ci
+
+      - name: Compilar TypeScript (runner)
+        run: npm run build
+
+      - name: Preparar source para deploy sem build remoto
+        run: |
+          # Sem o gcp-build, o buildpack faz install de producao (sem devDeps)
+          # e nao roda tsc — o dist/ ja vai pronto no zip. O postinstall
+          # (prisma generate) continua rodando no Cloud Build, pois o client
+          # precisa ser gerado no node_modules de la.
+          npm pkg delete scripts.gcp-build
+          # .gcloudignore explicito: o padrao gerado pelo gcloud herda o
+          # .gitignore, que exclui o dist/. Tambem evita subir credenciais do
+          # runner (gha-creds) e o env.yaml no zip do source.
+          cat > .gcloudignore <<'EOF'
+          .gcloudignore
+          .git
+          .gitignore
+          .github
+          .agent
+          node_modules
+          test
+          env.yaml
+          google.sh
+          gha-creds-*.json
+          *.md
+          EOF
+
+      - name: 'Deploy na function'
+        run: |
+          EXTRA_FLAGS=""
+          if [ -n "${{ inputs.cpu }}" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --cpu=${{ inputs.cpu }}"; fi
+          if [ -n "${{ inputs.concurrency }}" ]; then EXTRA_FLAGS="$EXTRA_FLAGS --concurrency=${{ inputs.concurrency }}"; fi
+          gcloud functions deploy ${nomeDaFuncao} --gen2 --region=us-central1 --runtime nodejs22 --memory=1Gi --entry-point ${nomeDaFuncao} --trigger-http --allow-unauthenticated --env-vars-file env.yaml --set-build-env-vars=NODE_ENV=production --project=${{ steps.env.outputs.project_id }} --min-instances=0 --max-instances=${{ inputs.maxInstances }} $EXTRA_FLAGS
+
+      - name: 'Configurar Direct VPC Egress no Cloud Run subjacente'
+        run: |
+          RUN_SERVICE=$(echo "${nomeDaFuncao}" | tr '_' '-')
+          gcloud run services update "${RUN_SERVICE}" \
+            --region=us-central1 \
+            --project=${{ steps.env.outputs.project_id }} \
+            --network=${{ steps.secret.outputs.NETWORK }} \
+            --subnet=${{ steps.secret.outputs.SUBNET }} \
+            --vpc-egress=private-ranges-only \
+            --add-cloudsql-instances=${{ steps.secret.outputs.DB_INSTANCE_CONNECTION_NAME }} \
+            --clear-vpc-connector
+
+      - name: 'Limpando Artifact'
+        run: ./google.sh ${{ steps.env.outputs.project_id }} ${{ env.nomeDaFuncao }} us-central1
