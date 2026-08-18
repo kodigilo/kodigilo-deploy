@@ -247,11 +247,12 @@ jobs:
 
       - name: Preparar source para deploy sem build remoto
         run: |
-          # Sem o gcp-build, o buildpack faz install de producao (sem devDeps)
-          # e nao roda tsc — o dist/ ja vai pronto no zip. O postinstall
-          # (prisma generate) continua rodando no Cloud Build, pois o client
-          # precisa ser gerado no node_modules de la.
-          npm pkg delete scripts.gcp-build
+          # O buildpack roda automaticamente tanto o gcp-build quanto o script
+          # "build" — ambos precisam sair do package.json enviado, senao o tsc
+          # roda no Cloud Build sem as devDeps (install de producao) e falha.
+          # O postinstall (prisma generate) continua rodando no Cloud Build,
+          # pois o client precisa ser gerado no node_modules de la.
+          npm pkg delete scripts.gcp-build scripts.build
           # .gcloudignore explicito: o padrao gerado pelo gcloud herda o
           # .gitignore, que exclui o dist/. Tambem evita subir credenciais do
           # runner (gha-creds) e o env.yaml no zip do source.
